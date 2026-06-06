@@ -98,15 +98,6 @@ ServiceNow → Approval → AWX → Provision → CMDB → CyberArk → Close
 - Python
 - PowerShell
 - GitHub Actions
-
----
-
-## Certifications
-
-- ServiceNow CSA ✅
-- CIS-ITOM 🎯 In Progress
-- CIS-CMDB 🎯 In Progress
-
 ---
 
 ## Prerequisites
