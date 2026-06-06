@@ -1,0 +1,48 @@
+---
+- name: Create incident in ServiceNow
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Create incident
+      servicenow.itsm.incident:
+        state: new
+        short_description: "Really important incident"
+        description: "Something really important is broken"
+        other:
+          commits: "This could take all day to fix!"
+          cmdb_ci: server2.example.com
+        impact: high
+        urgency: high
+      delegate_to: localhost
+      register: incident_info
+
+    - name: Get incident information
+      servicenow.itsm.incident_info:
+        number: "{{ incident_info.record.number }}"
+      register: incident_details
+
+    - name: Print incident details
+      debug:
+        msg: "{{ incident_details }}"
+
+    - pause:
+
+    - name: Update incident to in_progress
+      servicenow.itsm.incident:
+        number: "{{ incident_info.record.number }}"
+        state: in_progress
+        other:
+          comments: "Working hard. Lots of troubleshooting!"
+
+    - pause:
+
+    - name: Close the incident
+      servicenow.itsm.incident:
+        number: "{{ incident_info.record.number }}"
+        state: closed
+        close_code: "Solved (Permanently)"
+        close_notes: "Only I know how to fix this. You wouldn't understand"
+        other:
+          comments: "Phew! What a day. Might need tomorrow off to recover."

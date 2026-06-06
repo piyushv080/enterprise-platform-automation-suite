@@ -1,0 +1,15 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: Add newly deployed CI entry to file
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Append hostname entry
+      lineinfile:
+        path: /opt/scripts/snow/linux_servers
+        insertafter: EOF
+        line: "{{ test_hostname }}"
+        state: present
+      when: ansible_distribution == "RedHat"
+      delegate_to: test-delegate.example.com

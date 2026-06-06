@@ -1,0 +1,13 @@
+---
+# ServiceNow CI Variables
+# Replace all values with your real environment values
+
+test_pass: "{{ lookup('env', 'SN_PASSWORD') }}"
+test_hostname: "your-server-hostname"
+test_manufacturer: "Your Manufacturer"
+test_usage: "Production"
+test_serial: "your-serial-number"
+test_fqdn: "your-server.example.com"
+test_virtual: false
+test_headless: true
+test_comments: "Deployed via Ansible automation"
