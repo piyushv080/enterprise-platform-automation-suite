@@ -1,0 +1,19 @@
+---
+- name: Retrieve all configuration items from ServiceNow
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Retrieve all configuration items
+      uri:
+        url: "https://{{ snow_host }}/api/now/table/cmdb_ci"
+        method: GET
+        user: "{{ snow_username }}"
+        password: "{{ snow_password }}"
+        headers:
+          Accept: "application/json"
+      register: cmdb_items_response
+
+    - name: Print all configuration items
+      ansible.builtin.debug:
+        var: cmdb_items_response.json
