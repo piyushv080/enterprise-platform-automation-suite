@@ -1,0 +1,39 @@
+name: Build and Push Custom Execution Environment
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install ansible-builder
+        run: |
+          python3 -m venv /venv
+          source /venv/bin/activate
+          pip install --upgrade pip
+          pip install ansible-builder ansible-core ansible-runner
+
+      - name: Build Execution Environment
+        run: |
+          source /venv/bin/activate
+          cd awx-tower-deployment/custom-ee
+          ansible-builder build -t ansible-awx-ee:v1
+
+      - name: Login to Registry
+        run: |
+          echo "" | docker login \
+            -u "" \
+            --password-stdin ""
+
+      - name: Tag and Push Image
+        run: |
+          docker tag ansible-awx-ee:v1 :v1
+          docker push :v1
