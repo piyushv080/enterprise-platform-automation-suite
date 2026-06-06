@@ -1,10 +1,10 @@
-name: Setup Project Folder Structure
+name: Restructure - Remove Version Folders
 
 on:
-  workflow_dispatch:    # Run manually by clicking a button on GitHub
+  workflow_dispatch:
 
 jobs:
-  create-structure:
+  restructure:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,115 +19,30 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Create ServiceNow Integration folders
+      - name: Remove version subfolders and keep only module folders
         run: |
-          mkdir -p servicenow-integration/v1.0/incident-automation
-          mkdir -p servicenow-integration/v1.0/change-management
-          mkdir -p servicenow-integration/v1.0/cmdb-sync
-          mkdir -p servicenow-integration/v2.0
+          # ServiceNow
+          rm -rf servicenow-integration/v1.0
+          rm -rf servicenow-integration/v2.0
 
-          cat > servicenow-integration/README.md << 'EOF'
-          # ServiceNow Integration
-          Automation scripts for ServiceNow — Incident, Change Management, and CMDB Sync.
+          # CyberArk
+          rm -rf cyberark-integration/v1.0
+          rm -rf cyberark-integration/v2.0
 
-          ## Versions
-          - v1.0 — Initial integrations
-          - v2.0 — Enhanced integrations
-          EOF
-
-          touch servicenow-integration/v1.0/incident-automation/.gitkeep
-          touch servicenow-integration/v1.0/change-management/.gitkeep
-          touch servicenow-integration/v1.0/cmdb-sync/.gitkeep
-          touch servicenow-integration/v2.0/.gitkeep
-
-      - name: Create CyberArk Integration folders
-        run: |
-          mkdir -p cyberark-integration/v1.0/credential-rotation
-          mkdir -p cyberark-integration/v1.0/safe-management
-          mkdir -p cyberark-integration/v1.0/account-onboarding
-          mkdir -p cyberark-integration/v2.0
-
-          cat > cyberark-integration/README.md << 'EOF'
-          # CyberArk Integration
-          Automation scripts for CyberArk — Credential Rotation, Safe Management, and Account Onboarding.
-
-          ## Versions
-          - v1.0 — Initial integrations
-          - v2.0 — Enhanced integrations
-          EOF
-
-          touch cyberark-integration/v1.0/credential-rotation/.gitkeep
-          touch cyberark-integration/v1.0/safe-management/.gitkeep
-          touch cyberark-integration/v1.0/account-onboarding/.gitkeep
-          touch cyberark-integration/v2.0/.gitkeep
-
-      - name: Create Windows Automation folders
-        run: |
-          mkdir -p windows-automation/v1.0/patch-management
-          mkdir -p windows-automation/v1.0/user-provisioning
-          mkdir -p windows-automation/v1.0/registry-configs
-          mkdir -p windows-automation/v2.0
-
-          cat > windows-automation/README.md << 'EOF'
           # Windows Automation
-          PowerShell and automation scripts for Windows — Patch Management, User Provisioning, Registry Configs.
+          rm -rf windows-automation/v1.0
+          rm -rf windows-automation/v2.0
 
-          ## Versions
-          - v1.0 — Initial scripts
-          - v2.0 — Enhanced scripts
-          EOF
-
-          touch windows-automation/v1.0/patch-management/.gitkeep
-          touch windows-automation/v1.0/user-provisioning/.gitkeep
-          touch windows-automation/v1.0/registry-configs/.gitkeep
-          touch windows-automation/v2.0/.gitkeep
-
-      - name: Create Linux Automation folders
-        run: |
-          mkdir -p linux-automation/v1.0/user-management
-          mkdir -p linux-automation/v1.0/package-management
-          mkdir -p linux-automation/v1.0/cron-jobs
-          mkdir -p linux-automation/v2.0
-
-          cat > linux-automation/README.md << 'EOF'
           # Linux Automation
-          Bash and Ansible scripts for Linux — User Management, Package Management, Cron Jobs.
+          rm -rf linux-automation/v1.0
+          rm -rf linux-automation/v2.0
 
-          ## Versions
-          - v1.0 — Initial scripts
-          - v2.0 — Enhanced scripts
-          EOF
+          # AWX Tower
+          rm -rf awx-tower-deployment/v1.0
+          rm -rf awx-tower-deployment/v2.0
 
-          touch linux-automation/v1.0/user-management/.gitkeep
-          touch linux-automation/v1.0/package-management/.gitkeep
-          touch linux-automation/v1.0/cron-jobs/.gitkeep
-          touch linux-automation/v2.0/.gitkeep
-
-      - name: Create AWX Tower Deployment folders
-        run: |
-          mkdir -p awx-tower-deployment/v1.0/job-templates
-          mkdir -p awx-tower-deployment/v1.0/inventories
-          mkdir -p awx-tower-deployment/v1.0/playbooks
-          mkdir -p awx-tower-deployment/v1.0/credentials
-          mkdir -p awx-tower-deployment/v2.0
-
-          cat > awx-tower-deployment/README.md << 'EOF'
-          # AWX Tower Deployment
-          Ansible AWX/Tower automation — Job Templates, Inventories, Playbooks, Credentials.
-
-          ## Versions
-          - v1.0 — Initial deployment configs
-          - v2.0 — Enhanced configs
-          EOF
-
-          touch awx-tower-deployment/v1.0/job-templates/.gitkeep
-          touch awx-tower-deployment/v1.0/inventories/.gitkeep
-          touch awx-tower-deployment/v1.0/playbooks/.gitkeep
-          touch awx-tower-deployment/v1.0/credentials/.gitkeep
-          touch awx-tower-deployment/v2.0/.gitkeep
-
-      - name: Commit and push all folders
+      - name: Commit and push changes
         run: |
           git add .
-          git diff --cached --quiet || git commit -m "chore: initialize project folder structure with all modules"
+          git diff --cached --quiet || git commit -m "chore: remove version subfolders - files now directly in module folders"
           git push origin dev
