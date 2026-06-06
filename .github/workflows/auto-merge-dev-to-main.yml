@@ -1,0 +1,103 @@
+name: Auto Merge Dev to Main Every 3 Days
+
+on:
+  schedule:
+    - cron: '0 6 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "Piyush Vyas"
+          git config user.email "piyushv080@gmail.com"
+
+      - name: Fetch all branches
+        run: git fetch origin
+
+      - name: Find next module to sync to main
+        id: next_module
+        run: |
+          # Fixed order - one module per run
+          MODULES=(
+            "awx-tower-deployment"
+            "cyberark-integration"
+            "servicenow-integration"
+            "windows-automation"
+            "linux-automation"
+          )
+
+          NEXT_MODULE=""
+
+          for module in "${MODULES[@]}"; do
+            IN_DEV=$(git ls-tree -d origin/dev --name-only | grep "^$module$" || true)
+            IN_MAIN=$(git ls-tree -d origin/main --name-only | grep "^$module$" || true)
+
+            if [ -n "$IN_DEV" ] && [ -z "$IN_MAIN" ]; then
+              NEXT_MODULE="$module"
+              break
+            fi
+          done
+
+          if [ -z "$NEXT_MODULE" ]; then
+            echo "done=true" >> $GITHUB_OUTPUT
+          else
+            echo "done=false" >> $GITHUB_OUTPUT
+            echo "module=$NEXT_MODULE" >> $GITHUB_OUTPUT
+          fi
+
+      - name: All modules already in main - nothing to do
+        if: steps.next_module.outputs.done == 'true'
+        run: |
+          echo "============================================"
+          echo "All modules are already present in main."
+          echo "Portfolio is complete. Workflow will stop."
+          echo "============================================"
+
+      - name: Copy next module from dev to main
+        if: steps.next_module.outputs.done == 'false'
+        run: |
+          MODULE="${{ steps.next_module.outputs.module }}"
+
+          git checkout main
+          git pull origin main
+
+          # Copy only this module's folder from dev
+          git checkout origin/dev -- $MODULE/
+
+          # Build human-like commit message
+          declare -a templates=(
+            "Added $MODULE automation scripts"
+            "Updated $MODULE integration work"
+            "Pushing $MODULE scripts to main"
+            "Latest $MODULE automation added"
+            "Syncing $MODULE work to main"
+            "$MODULE automation progress updated"
+            "New $MODULE scripts ready in main"
+          )
+
+          RANDOM_MSG="${templates[$RANDOM % ${#templates[@]}]}"
+
+          git add .
+          git diff --cached --quiet || git commit -m "$RANDOM_MSG"
+          git push origin main
+
+          echo "============================================"
+          echo "Module merged: $MODULE"
+          echo "Commit message: $RANDOM_MSG"
+          echo "============================================"
+
+      - name: Merge failed - conflict detected
+        if: failure()
+        run: |
+          echo "Something went wrong. Please check manually."
+          exit 1
