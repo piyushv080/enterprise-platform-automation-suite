@@ -1,0 +1,59 @@
+name: Build and Test AWX Execution Environment
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+jobs:
+  build-and-push-ee-image:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Container Registry
+        run: |
+          echo "" | docker login \
+            -u "" \
+            --password-stdin ""
+
+      - name: Install ansible-builder
+        run: |
+          python3 -m venv /venv
+          source /venv/bin/activate
+          pip install --upgrade pip
+          pip install ansible-builder ansible-core ansible-runner
+
+      - name: Build Execution Environment
+        run: |
+          source /venv/bin/activate
+          cd ansible-ee
+          ansible-builder build -t awx-terraform-ee:v1 --container-runtime docker
+
+      - name: Tag and Push Image
+        run: |
+          docker tag awx-terraform-ee:v1 :v1
+          docker push :v1
+
+  test-ee-image:
+    runs-on: ubuntu-latest
+    needs: build-and-push-ee-image
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Container Registry
+        run: |
+          echo "" | docker login \
+            -u "" \
+            --password-stdin ""
+
+      - name: Pull and Test EE Image
+        run: |
+          docker pull :v1
+          docker run --rm -v "$PWD:/workspace" :v1 \
+            ansible-playbook /workspace/ansible-ee/playbooks/check_versions.yml

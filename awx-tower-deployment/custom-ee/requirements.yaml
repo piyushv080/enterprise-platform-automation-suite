@@ -1,0 +1,8 @@
+collections:
+  - cisco.dnac
+  - community.vmware
+  - awx.awx
+  - netapp.ontap
+  - kubernetes.core
+  - servicenow.itsm
+  - servicenow.servicenow

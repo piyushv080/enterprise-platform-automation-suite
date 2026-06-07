@@ -1,0 +1,11 @@
+# Step 1: Build the Docker image
+ansible-builder build -t ansible-awx-ee:v1
+
+# Step 2: Tag the image for GitLab
+docker tag ansible-awx-ee:v1 registry.gitlab.com/dc_automation/ansible_awx/awx-deploy/ansible-awx-ee:v1
+
+# Step 3: Log in with your PAT
+docker login registry.gitlab.com -u piyushv080 -p <YOUR_PAT>
+
+# Step 4: Push the image to GitLab registry
+docker push registry.gitlab.com/dc_automation/ansible_awx/awx-deploy/ansible-awx-ee:v1
