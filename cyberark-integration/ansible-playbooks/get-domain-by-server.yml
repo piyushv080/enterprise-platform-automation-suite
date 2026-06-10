@@ -1,0 +1,28 @@
+---
+- name: Retrieve Domain Name by Server Name
+  hosts: localhost
+  gather_facts: no
+
+  vars_prompt:
+    - name: "server_name"
+      prompt: "Enter the server name"
+      private: no
+
+  tasks:
+
+    - name: Perform DNS lookup
+      command: nslookup {{ server_name }}
+      register: nslookup_result
+      changed_when: false
+
+    - name: Extract domain name from nslookup output
+      set_fact:
+        domain_name: >-
+          {{ nslookup_result.stdout
+             | regex_search('Name:\\s*(.*)', '\\1')
+             | default('UNKNOWN', true)
+          }}
+
+    - name: Show extracted domain name
+      debug:
+        msg: "The domain name for server {{ server_name }} is: {{ domain_name }}"

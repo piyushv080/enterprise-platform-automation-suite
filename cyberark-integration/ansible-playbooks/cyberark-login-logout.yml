@@ -1,0 +1,77 @@
+---
+- name: Login and Logout of CyberArk with Logging
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    base_uri: "cyberark.yourcompany.com"
+    app_id: "YourAppID"
+    aim_safe: "YourAIMSafe"
+    aim_username: "YourAIMServiceAccount"
+    aim_auth_uri: "https://{{ base_uri }}/AIMWebService/api/Accounts?AppID={{ app_id }}&Safe={{ aim_safe }}&Username={{ aim_username }}"
+    rest_auth_uri: "https://{{ base_uri }}/PasswordVault/WebServices/auth/Cyberark/CyberArkAuthenticationService.svc/Logon"
+    release_token_uri: "https://{{ base_uri }}/PasswordVault/API/Auth/Logoff/"
+
+  tasks:
+
+    - name: Get AIM authentication token
+      uri:
+        url: "{{ aim_auth_uri }}"
+        method: GET
+        return_content: yes
+        validate_certs: no
+      register: aim_token_response
+      failed_when: aim_token_response.status != 200
+
+    - name: Log AIM authentication token response
+      debug:
+        msg:
+          - "AIM Token Response: {{ aim_token_response.content }}"
+          - "Status Code: {{ aim_token_response.status }}"
+
+    - name: Extract AIM token
+      set_fact:
+        aim_token: "{{ aim_token_response.json | json_query('Content') }}"
+
+    - name: Log into CyberArk
+      uri:
+        url: "{{ rest_auth_uri }}"
+        method: POST
+        body_format: json
+        body:
+          username: "{{ aim_username }}"
+          password: "{{ aim_token }}"
+        headers:
+          Content-Type: "application/json"
+        return_content: yes
+        validate_certs: no
+      register: rest_token_response
+      failed_when: rest_token_response.status != 200
+
+    - name: Log CyberArk login response
+      debug:
+        msg:
+          - "CyberArk Login Response: {{ rest_token_response.json }}"
+          - "Status Code: {{ rest_token_response.status }}"
+
+    - name: Set authentication header
+      set_fact:
+        auth_header: "{{ rest_token_response.json.CyberArkLogonResult }}"
+
+    - name: Log out of CyberArk
+      uri:
+        url: "{{ release_token_uri }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+          Authorization: "{{ auth_header }}"
+        return_content: yes
+        validate_certs: no
+      register: logout_response
+      failed_when: logout_response.status != 200
+
+    - name: Log CyberArk logout response
+      debug:
+        msg:
+          - "CyberArk Logout Response: {{ logout_response.json }}"
+          - "Status Code: {{ logout_response.status }}"

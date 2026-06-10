@@ -1,0 +1,131 @@
+---
+- name: Get CyberArk Account
+  hosts: localhost
+
+  vars:
+    base_uri: "cyberark.yourcompany.com"
+    app_id: "YourAppID"
+    aim_safe: "YourAIMSafe"
+    aim_username: "YourAIMUser"
+    aim_authentication_uri: "https://{{ base_uri }}/AIMWebService/api/Accounts?AppID={{ app_id }}&Safe={{ aim_safe }}&Username={{ aim_username }}"
+    rest_authentication_uri: "https://{{ base_uri }}/PasswordVault/WebServices/auth/Cyberark/CyberArkAuthenticationService.svc/Logon"
+
+  tasks:
+
+    - name: Get AIM authentication token
+      uri:
+        url: "{{ aim_authentication_uri }}"
+        method: GET
+        return_content: yes
+      register: aim_token
+      failed_when: aim_token.status != 200
+      retries: 3
+      delay: 5
+      until: aim_token.status == 200
+
+    - name: Build authentication body
+      set_fact:
+        authentication_body: |
+          {
+            "username": "{{ aim_username }}",
+            "password": "{{ aim_token.content }}"
+          }
+
+    - name: Log into CyberArk
+      uri:
+        url: "{{ rest_authentication_uri }}"
+        method: POST
+        body: "{{ authentication_body }}"
+        headers:
+          Content-Type: "application/json"
+        return_content: yes
+      register: rest_token
+      failed_when: rest_token.status != 200
+      retries: 3
+      delay: 5
+      until: rest_token.status == 200
+
+    - name: Set authentication header
+      set_fact:
+        authentication_header: "Authorization: {{ rest_token.json.CyberArkLogonResult | join(' ') }}"
+
+    - name: Search for the account
+      uri:
+        url: "https://{{ base_uri }}/PasswordVault/WebServices/PIMServices.svc/Accounts?Keywords={{ server }},{{ username }}"
+        method: GET
+        headers:
+          Authorization: "{{ authentication_header }}"
+          Content-Type: "application/json"
+        return_content: yes
+      register: account_details
+      failed_when: account_details.status != 200
+      retries: 3
+      delay: 5
+      until: account_details.status == 200
+
+    - name: Check account ID
+      set_fact:
+        account_id: "{{ account_details.json.accounts[0].AccountID | default('') }}"
+        account_properties: "{{ account_details.json.accounts[0].Properties }}"
+
+    - name: Split hostname and domain
+      set_fact:
+        hostname: "{{ server.split('.')[0] }}"
+        domain: "{{ server.split('.')[1:] | join('.') }}"
+
+    - name: Map domain name for CyberArk vault
+      set_fact:
+        acr: >
+          {% if domain == 'yourdomain.local' %} ORG
+          {% elif domain == 'example.com' %} EXAMPLE
+          {% elif domain == 'dev.example.com' %} DEV
+          {% elif domain == 'lab.internal' %} LAB
+          {% else %} UNKNOWN
+          {% endif %}
+
+    - name: Set PlatformID
+      set_fact:
+        platform_id: "Windows-Local-{{ acr }}-NR"
+
+    - name: Extract account safe name
+      set_fact:
+        account_safe: "{{ item.Value }}"
+      loop: "{{ account_properties }}"
+      when: item.Key == "Safe"
+
+    - name: Update account in CyberArk
+      uri:
+        url: "https://{{ base_uri }}/PasswordVault/WebServices/PIMServices.svc/Accounts/{{ account_id }}"
+        method: PUT
+        headers:
+          Authorization: "{{ authentication_header }}"
+          Content-Type: "application/json"
+        return_content: yes
+      register: account_update
+      failed_when: account_update.status != 200
+
+    - name: Get account password
+      uri:
+        url: "https://{{ base_uri }}/PasswordVault/WebServices/PIMServices.svc/Accounts/{{ account_id }}/Credentials"
+        method: GET
+        headers:
+          Authorization: "{{ authentication_header }}"
+          Content-Type: "application/json"
+        return_content: yes
+      register: account_password
+      failed_when: account_password.status != 200
+
+    - name: Convert password
+      set_fact:
+        cred_password: "{{ account_password.content | b64decode }}"
+
+    - name: Log out of CyberArk
+      uri:
+        url: "https://{{ base_uri }}/PasswordVault/WebServices/auth/Cyberark/CyberArkAuthenticationService.svc/Logoff"
+        method: POST
+        headers:
+          Authorization: "{{ authentication_header }}"
+          Content-Type: "application/json"
+        return_content: yes
+      register: logoff_results
+      failed_when: logoff_results.status != 200

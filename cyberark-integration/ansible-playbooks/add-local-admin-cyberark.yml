@@ -1,0 +1,109 @@
+---
+- name: Add local admin account to CyberArk
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    domain: "{{ ansible_domain }}"
+    username: "localadmin"
+    hostname: "{{ ansible_hostname }}"
+    base_uri: "cyberark.yourcompany.com"
+    app_id: "YourAppID"
+    aim_safe: "YourAIMSafeName"
+    aim_username: "YourAIMServiceAccount"
+    aim_auth_uri: "https://{{ base_uri }}/AIMWebService/api/Accounts?AppID={{ app_id }}&Safe={{ aim_safe }}&Username={{ aim_username }}"
+    rest_auth_uri: "https://{{ base_uri }}/PasswordVault/WebServices/auth/Cyberark/CyberArkAuthenticationService.svc/Logon"
+    new_account_uri: "https://{{ base_uri }}/PasswordVault/WebServices/PIMServices.svc/Account"
+    release_token_uri: "https://{{ base_uri }}/PasswordVault/WebServices/auth/Cyberark/CyberArkAuthenticationService.svc/Logoff"
+
+  tasks:
+
+    - name: Get AIM authentication token
+      uri:
+        url: "{{ aim_auth_uri }}"
+        method: GET
+        return_content: yes
+      register: aim_token_response
+      failed_when: aim_token_response.status != 200
+
+    - name: Log into CyberArk
+      uri:
+        url: "{{ rest_auth_uri }}"
+        method: POST
+        body_format: json
+        body:
+          username: "{{ aim_username }}"
+          password: "{{ aim_token_response.content }}"
+        headers:
+          Content-Type: "application/json"
+        return_content: yes
+      register: rest_token_response
+      failed_when: rest_token_response.status != 200
+
+    - name: Set authentication header
+      set_fact:
+        auth_header: "Authorization: {{ rest_token_response.json.CyberArkLogonResult }}"
+
+    - name: Map domain to acronym
+      set_fact:
+        acr: "{{ domain_map[domain] }}"
+      vars:
+        domain_map:
+          yourdomain.local: "ORG"
+          example.com: "EXAMPLE"
+          dev.example.com: "DEV"
+          lab.internal: "LAB"
+
+    - name: Build account details
+      set_fact:
+        safe_name: "ORG-P-SERV-WIN-{{ acr }}"
+        platform_id: "Windows-Local-{{ acr }}-OTU"
+        account_address: "{{ hostname }}.{{ domain }}"
+        account_name: "Operating System-{{ platform_id }}-{{ account_address }}-{{ username }}"
+
+    - name: Add account to CyberArk
+      uri:
+        url: "{{ new_account_uri }}"
+        method: POST
+        headers:
+          Authorization: "{{ auth_header }}"
+          Content-Type: "application/json"
+        body_format: json
+        return_content: yes
+      register: new_account_response
+      failed_when: new_account_response.status != 200
+
+    - name: Query account to confirm addition
+      uri:
+        url: "https://{{ base_uri }}/PasswordVault/WebServices/PIMServices.svc/Accounts?Keywords={{ account_address }},{{ username }}&Safe={{ safe_name }}"
+        method: GET
+        headers:
+          Authorization: "{{ auth_header }}"
+          Content-Type: "application/json"
+        return_content: yes
+      register: query_account_response
+      failed_when: query_account_response.status != 200
+
+    - name: Check if account ID exists
+      set_fact:
+        account_id: "{{ query_account_response.json.accounts[0].AccountID }}"
+      when: query_account_response.json.accounts | length > 0
+
+    - name: Log account ID status
+      debug:
+        msg: "The Account ID was found: {{ account_id }}"
+      when: account_id is defined
+
+    - name: Log account not found
+      debug:
+        msg: "The account could not be found"
+      when: account_id is not defined
+
+    - name: Log out of CyberArk
+      uri:
+        url: "{{ release_token_uri }}"
+        method: POST
+        headers:
+          Authorization: "{{ auth_header }}"
+          Content-Type: "application/json"
+        return_content: yes
