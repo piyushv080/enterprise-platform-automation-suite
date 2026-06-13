@@ -1,0 +1,19 @@
+---
+- name: Test ServiceNow connectivity
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Test connectivity
+      uri:
+        url: "https://{{ snow_host }}/api/now/table/cmdb_ci"
+        method: GET
+        user: "{{ snow_username }}"
+        password: "{{ snow_password }}"
+        headers:
+          Accept: "application/json"
+      register: response
+
+    - name: Print response
+      ansible.builtin.debug:
+        var: response

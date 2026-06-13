@@ -1,0 +1,10 @@
+#!/usr/bin/env ansible-playbook
+---
+- hosts: all
+  become: true
+  gather_facts: true
+  serial: 1
+
+  tasks:
+    - name: Create CI in SNOW
+      import_tasks: tasks/create_ci.yaml
